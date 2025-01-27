@@ -1,75 +1,46 @@
-from time import sleep
-from typing import Callable, Any, List, Self
-
-class Node:
-    def __init__(self, fn: Callable, pipeline):
-        self._fn = fn
-        self._pipeline: ParallelPipeline = pipeline
-        self._children: List[Self] = []
-
-    def __call__(self, *args, **kwargs):
-        return self._fn(*args, **kwargs)
+from typing import List, Union, Callable, Dict, Any
+from nyoom import Node, Input, Pipeline
 
 
-class ParallelPipeline:
-    def __init__(self):
-        self._roots: List[Callable[[], Any]] = []
+pipeline = Pipeline()
 
-    def as_node(self, dependencies: List[Node]):
-        def make_node(fn: Callable):
-            new_node = Node(fn, self)
-            for dep in dependencies:
-                dep._children.append(new_node)
-            return Node(fn, self)
+# pipeline.input
+# x = Input("x")
 
-    # def as_root(self, fn: Callable[[], Any]) -> Node:
-    #     self._roots.append(fn)
-    #     return Node(fn)
+# pipeline.input
+# y = Input("y")
 
+x = pipeline.input("x")
+y = pipeline.input("y")
 
-# def double(x: int) -> int:
-#     sleep(3)
-#     return x * 2
+@pipeline.node(x)
+def double(x: int) -> int:
+    return x * 2
 
+@pipeline.node(y)
+def square(x: int) -> int:
+    return x * x
 
-# def square(x: int) -> int:
-#     sleep(1)
-#     return x * x
+@pipeline.node(double, square)
+def add(x: int, y: int) -> int:
+    return x + y
 
+@pipeline.node(add)
+def add_one(x: int) -> int:
+    return x + 1
 
-# def add(x: int, y: int) -> int:
-#     sleep(2)
-#     return x + y
+@pipeline.node(add)
+def add_two(x: int) -> int:
+    return x + 2
 
+pipeline.evaluate({"x": [4, 4, 6], "y": [7, 7, 1]})
 
-if __name__ == "__main__":
-    # a = lambda x: x + 1
-    # b = lambda x: x + 1
-    # c = lambda x: x + 2
+print(add_one.result)
+print(add_two.result)
+print(add_one(2))
 
-    pipeline = ParallelPipeline()
-
-    # @pipeline.as_root
-    def double(x: int) -> int:
-        sleep(3)
-        return x * 2
-
-    # @pipeline.as_root
-    def square(x: int) -> int:
-        sleep(1)
-        return x * x
-
-
-    def add(x: int, y: int) -> int:
-        sleep(2)
-        return x + y
-    
-    print(double)
-
-    # pipeline.add_root()
-
-
-    # print(a == a)
-    # print(a == b)
-    # print(a == c)
-    # print(add(double(2), square(5)))
+"""
+double(x) \                  /-> add_one(x)
+           |-> add(x, y) ->-|
+square(x) /                  \-> add_two(x)
+"""
