@@ -35,10 +35,14 @@ class Pipeline:
         return input
 
     def _handle_complete_component(self, component: Component, index: int) -> None:
+        component_name = component.name if isinstance(component, Input) else component.fn.__name__
         for child in component._children:
-            if not isinstance(child, Node): continue
+            # print(f"iterating over {child.fn.__name__}")
+            if not isinstance(child, Node):
+                continue
             new_task = child._try_get_task(index)
-            if new_task is None: continue
+            if new_task is None:
+                continue
             self._queued_tasks.append(new_task)
             self._num_active_tasks += 1
     
@@ -63,10 +67,11 @@ class Pipeline:
         for key, value in inputs.items():
             self._inputs[key].result = value
         
+        # Create initial tasks
         for component in self._inputs.values():
             for i in range(length):
                 self._handle_complete_component(component, i)
-        
+                
         # Manage tasks
         while len(self._queued_tasks) + self._num_active_tasks > 0:
             for i, task in enumerate(self._active_tasks):
@@ -76,10 +81,8 @@ class Pipeline:
                         next_task = self._queued_tasks.popleft()
                         self._active_tasks[i] = next_task
                         next_task.start_execute()
-                elif task.is_complete:
+                elif task.try_join():
                     self._active_tasks[i] = None
                     self._num_active_tasks -= 1
-                    component: Component = task.node
-                    component.result[task.index] = task.result
-                    self._handle_complete_component(component, task.index)
+                    self._handle_complete_component(task.node, task.index)
         

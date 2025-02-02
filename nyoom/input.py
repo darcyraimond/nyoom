@@ -8,3 +8,7 @@ class Input(Component):
 
     def __hash__(self):
         return hash(self.name)
+    
+    @property
+    def __name__(self):
+        return self.name
